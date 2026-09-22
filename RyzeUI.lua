@@ -27,7 +27,6 @@ local EstadoGlobal = {
 -- FUNCIÓN DE LIMPIEZA GLOBAL
 -- ============================
 local function limpiarTodo()
-    -- 1. Destruir plano fantasma
     if EstadoGlobal.ghostFolder then
         pcall(function() EstadoGlobal.ghostFolder:Destroy() end)
         EstadoGlobal.ghostFolder = nil
@@ -35,7 +34,6 @@ local function limpiarTodo()
     local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
     if ghost then ghost:Destroy() end
 
-    -- 2. Desactivar Fly (desanclar HRP)
     if LocalPlayer.Character then
         local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -43,7 +41,6 @@ local function limpiarTodo()
         end
     end
 
-    -- 3. Restaurar colisiones (Noclip)
     if LocalPlayer.Character then
         for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
             if parte:IsA("BasePart") then
@@ -52,20 +49,17 @@ local function limpiarTodo()
         end
     end
 
-    -- 4. Resetear estado
     EstadoGlobal.flyEnabled = false
     EstadoGlobal.flyActive = false
     EstadoGlobal.noclipEnabled = false
     EstadoGlobal.noclipActive = false
 
-    -- 5. Destruir la UI
     local ui = game.CoreGui:FindFirstChild("RyzeUI_Screen")
     if ui then ui:Destroy() end
 
     print("[RyzeUI] Todo limpio ✅")
 end
 
--- Exponer la función por si quieres llamarla manualmente
 if getgenv then
     getgenv().RyzeUI_Limpiar = limpiarTodo
 end
@@ -321,7 +315,6 @@ function RyzeUI:CreateWindow(config)
         closeBtn.TextColor3 = Colors.TextLight
     end)
 
-    -- ✅ AL CERRAR: limpiar TODO
     closeBtn.MouseButton1Click:Connect(function()
         limpiarTodo()
     end)
@@ -920,14 +913,44 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        local basePos
-        if LocalPlayer.Character then
-            basePos = LocalPlayer.Character:GetPivot().Position
-        else
-            basePos = Vector3.new(0, 0, 0)
-        end
+        -- 1. Calcular el CENTRO REAL de la estructura escaneada
+        local minX, minY, minZ = math.huge, math.huge, math.huge
+        local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 
         for _, partData in ipairs(scannedBuild.Parts) do
+            minX = math.min(minX, partData.Position.X)
+            minY = math.min(minY, partData.Position.Y)
+            minZ = math.min(minZ, partData.Position.Z)
+            maxX = math.max(maxX, partData.Position.X)
+            maxY = math.max(maxY, partData.Position.Y)
+            maxZ = math.max(maxZ, partData.Position.Z)
+        end
+
+        local centroReal = Vector3.new(
+            (minX + maxX) / 2,
+            (minY + maxY) / 2,
+            (minZ + maxZ) / 2
+        )
+
+        -- 2. Calcular la posición base: delante de ti a 15 studs
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local basePos
+        if hrp then
+            local cam = workspace.CurrentCamera
+            local lookDir = cam.CFrame.LookVector
+            basePos = hrp.Position + Vector3.new(lookDir.X * 15, 0, lookDir.Z * 15)
+        else
+            basePos = Vector3.new(0, 10, 0)
+        end
+
+        print("[RyzeUI] Centro de la nave:", tostring(centroReal))
+        print("[RyzeUI] Base para el plano:", tostring(basePos))
+
+        -- 3. Crear los fantasmas centrados alrededor de ti
+        local count = 0
+        for _, partData in ipairs(scannedBuild.Parts) do
+            local relativePos = partData.Position - centroReal
+
             local ghostPart = Instance.new("Part")
             ghostPart.Size = partData.Size
             ghostPart.Color = Colors.Ghost
@@ -935,11 +958,13 @@ BuildTab:CreateButton({
             ghostPart.Transparency = 0.5
             ghostPart.CanCollide = false
             ghostPart.Anchored = true
-            ghostPart.Position = partData.Position - scannedBuild.Origin + basePos + Vector3.new(0, 5, 0)
+            ghostPart.Position = basePos + relativePos
             ghostPart.Parent = ghostFolder
+            count = count + 1
         end
 
-        print("[RyzeUI] Plano mostrado: " .. #scannedBuild.Parts .. " bloques fantasma")
+        print("[RyzeUI] Plano mostrado: " .. count .. " bloques fantasma")
+        print("[RyzeUI] Tamaño aproximado: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
     end
 })
 
