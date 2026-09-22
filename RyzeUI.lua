@@ -21,7 +21,7 @@ local EstadoGlobal = {
     noclipEnabled = false,
     noclipActive = false,
     ghostFolder = nil,
-    escalaPlano = 1,      -- 1 = tamaño real, 5 = más pequeño
+    escalaPlano = 1,
 }
 
 -- ============================
@@ -948,10 +948,10 @@ BuildTab:CreateButton({
         local tamanoY = maxY - minY
         local tamanoZ = maxZ - minZ
 
-        -- Escala del slider (1 = real, 10 = muy pequeño)
+        -- Escala del slider (1 = real, 10 = más pequeño)
         local escala = 1 / EstadoGlobal.escalaPlano
 
-        -- Posición base: tu personaje (a ras de suelo)
+        -- Posición base: tu personaje
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local basePos
         if hrp then
@@ -960,12 +960,15 @@ BuildTab:CreateButton({
             basePos = Vector3.new(0, 50, 0)
         end
 
+        -- 🔑 CLAVE: Calcular cuánto subir el plano para que NO se hunda
+        local offsetY = -((minY - centroReal.Y) * escala)
+
         print("[RyzeUI] Centro de la nave:", tostring(centroReal))
         print("[RyzeUI] Base para el plano:", tostring(basePos))
         print("[RyzeUI] Tamaño original:", tamanoX, tamanoY, tamanoZ)
         print("[RyzeUI] Escala aplicada:", escala)
+        print("[RyzeUI] Offset Y para no hundirse:", offsetY)
 
-        -- Crear TODAS las piezas centradas y escaladas
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
             local relativePos = (partData.Position - centroReal) * escala
@@ -978,7 +981,7 @@ BuildTab:CreateButton({
             ghostPart.Transparency = 0.5
             ghostPart.CanCollide = false
             ghostPart.Anchored = true
-            ghostPart.Position = basePos + relativePos
+            ghostPart.Position = basePos + relativePos + Vector3.new(0, offsetY, 0)
             ghostPart.Parent = ghostFolder
             count = count + 1
         end
