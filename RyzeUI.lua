@@ -21,6 +21,7 @@ local EstadoGlobal = {
     noclipEnabled = false,
     noclipActive = false,
     ghostFolder = nil,
+    escalaPlano = 1,      -- 1 = tamaño real, 5 = más pequeño
 }
 
 -- ============================
@@ -828,9 +829,21 @@ BuildTab:CreateDropdown({
     end
 })
 
+BuildTab:CreateSlider({
+    Name = "Escala del Plano",
+    Min = 1,
+    Max = 10,
+    CurrentValue = 1,
+    Order = 2,
+    Callback = function(valor)
+        EstadoGlobal.escalaPlano = valor
+        print("[RyzeUI] Escala del plano:", valor)
+    end
+})
+
 BuildTab:CreateButton({
     Name = "SCAN BUILD",
-    Order = 2,
+    Order = 3,
     Callback = function()
         if not selectedTarget or selectedTarget == "None" then
             return print("[RyzeUI] Selecciona un jugador primero")
@@ -897,7 +910,7 @@ BuildTab:CreateButton({
 
 BuildTab:CreateButton({
     Name = "PASTE (Mostrar Plano)",
-    Order = 3,
+    Order = 4,
     Callback = function()
         if not scannedBuild then
             return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
@@ -912,7 +925,7 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        -- 1. Calcular centro y tamaño real
+        -- Calcular centro y tamaño real
         local minX, minY, minZ = math.huge, math.huge, math.huge
         local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 
@@ -935,18 +948,14 @@ BuildTab:CreateButton({
         local tamanoY = maxY - minY
         local tamanoZ = maxZ - minZ
 
-        -- 2. Escala automática si es demasiado grande
-        local escala = 1
-        local tamanoMax = math.max(tamanoX, tamanoY, tamanoZ)
-        if tamanoMax > 100 then
-            escala = 100 / tamanoMax
-        end
+        -- Escala del slider (1 = real, 10 = muy pequeño)
+        local escala = 1 / EstadoGlobal.escalaPlano
 
-        -- 3. Posición base: usar la posición del personaje + 20 studs hacia arriba
+        -- Posición base: tu personaje (a ras de suelo)
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local basePos
         if hrp then
-            basePos = hrp.Position + Vector3.new(0, 20, 0)
+            basePos = hrp.Position
         else
             basePos = Vector3.new(0, 50, 0)
         end
@@ -956,7 +965,7 @@ BuildTab:CreateButton({
         print("[RyzeUI] Tamaño original:", tamanoX, tamanoY, tamanoZ)
         print("[RyzeUI] Escala aplicada:", escala)
 
-        -- 4. Crear TODAS las piezas centradas y escaladas
+        -- Crear TODAS las piezas centradas y escaladas
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
             local relativePos = (partData.Position - centroReal) * escala
@@ -980,7 +989,7 @@ BuildTab:CreateButton({
 
 BuildTab:CreateButton({
     Name = "CLEAR PASTE",
-    Order = 4,
+    Order = 5,
     Callback = function()
         if EstadoGlobal.ghostFolder then
             EstadoGlobal.ghostFolder:Destroy()
