@@ -13,6 +13,64 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============================
+-- ESTADO GLOBAL (para limpieza)
+-- ============================
+local EstadoGlobal = {
+    flyEnabled = false,
+    flyActive = false,
+    noclipEnabled = false,
+    noclipActive = false,
+    ghostFolder = nil,
+}
+
+-- ============================
+-- FUNCIÓN DE LIMPIEZA GLOBAL
+-- ============================
+local function limpiarTodo()
+    -- 1. Destruir plano fantasma
+    if EstadoGlobal.ghostFolder then
+        pcall(function() EstadoGlobal.ghostFolder:Destroy() end)
+        EstadoGlobal.ghostFolder = nil
+    end
+    local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
+    if ghost then ghost:Destroy() end
+
+    -- 2. Desactivar Fly (desanclar HRP)
+    if LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            pcall(function() hrp.Anchored = false end)
+        end
+    end
+
+    -- 3. Restaurar colisiones (Noclip)
+    if LocalPlayer.Character then
+        for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if parte:IsA("BasePart") then
+                pcall(function() parte.CanCollide = true end)
+            end
+        end
+    end
+
+    -- 4. Resetear estado
+    EstadoGlobal.flyEnabled = false
+    EstadoGlobal.flyActive = false
+    EstadoGlobal.noclipEnabled = false
+    EstadoGlobal.noclipActive = false
+
+    -- 5. Destruir la UI
+    local ui = game.CoreGui:FindFirstChild("RyzeUI_Screen")
+    if ui then ui:Destroy() end
+
+    print("[RyzeUI] Todo limpio ✅")
+end
+
+-- Exponer la función por si quieres llamarla manualmente
+if getgenv then
+    getgenv().RyzeUI_Limpiar = limpiarTodo
+end
+
+-- ============================
 -- COLORES
 -- ============================
 local Colors = {
@@ -262,8 +320,10 @@ function RyzeUI:CreateWindow(config)
     closeBtn.MouseLeave:Connect(function()
         closeBtn.TextColor3 = Colors.TextLight
     end)
+
+    -- ✅ AL CERRAR: limpiar TODO
     closeBtn.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
+        limpiarTodo()
     end)
 
     local Window = {}
@@ -737,7 +797,7 @@ function RyzeUI:CreateWindow(config)
     end
 
     function Window:Destroy()
-        screenGui:Destroy()
+        limpiarTodo()
     end
 
     return Window
@@ -755,7 +815,6 @@ local MiscTab = Window:CreateTab("MISC")
 -- BUILD: SCAN, PASTE, AUTO BUILD, CLEAR
 -- ============================
 local scannedBuild = nil
-local ghostFolder = nil
 local selectedTarget = nil
 
 BuildTab:CreateDropdown({
@@ -791,7 +850,6 @@ BuildTab:CreateButton({
 
         local aircraft = nil
 
-        -- Buscar en varios sitios posibles
         local playerAircraft = workspace:FindFirstChild("PlayerAircraft")
         if playerAircraft then
             aircraft = playerAircraft:FindFirstChild(target.Name)
@@ -853,11 +911,14 @@ BuildTab:CreateButton({
             return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
         end
 
-        if ghostFolder then ghostFolder:Destroy() end
+        if EstadoGlobal.ghostFolder then
+            EstadoGlobal.ghostFolder:Destroy()
+        end
 
-        ghostFolder = Instance.new("Folder")
+        local ghostFolder = Instance.new("Folder")
         ghostFolder.Name = "RyzeUI_Ghost"
         ghostFolder.Parent = workspace
+        EstadoGlobal.ghostFolder = ghostFolder
 
         local basePos
         if LocalPlayer.Character then
@@ -895,7 +956,7 @@ BuildTab:CreateButton({
 
         local RS = game:GetService("ReplicatedStorage")
         local BuildFunctions
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             BuildFunctions = require(RS.Modules.BuildFunctions)
         end)
 
@@ -903,7 +964,6 @@ BuildTab:CreateButton({
             return print("[RyzeUI] No se pudo acceder a BuildFunctions. Usa el PASTE manual.")
         end
 
-        -- Buscar la Build Zone del jugador
         local BuildZones = workspace:FindFirstChild("BuildingZones")
         local buildZone = nil
         if BuildZones then
@@ -921,7 +981,6 @@ BuildTab:CreateButton({
 
         print("[RyzeUI] Iniciando AUTO BUILD de " .. target.Name .. "...")
 
-        -- Recorrer los bloques y colocarlos
         for index, partData in ipairs(scannedBuild.Parts) do
             local relativePos = partData.Position - scannedBuild.Origin
 
@@ -955,24 +1014,21 @@ BuildTab:CreateButton({
     Name = "CLEAR PASTE",
     Order = 5,
     Callback = function()
-        if ghostFolder then
-            ghostFolder:Destroy()
-            ghostFolder = nil
+        if EstadoGlobal.ghostFolder then
+            EstadoGlobal.ghostFolder:Destroy()
+            EstadoGlobal.ghostFolder = nil
             print("[RyzeUI] Plano eliminado")
         end
+        local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
+        if ghost then ghost:Destroy() end
     end
 })
 
 -- ============================
 -- MISC: FLY Y NOCLIP
 -- ============================
-local flyEnabled = false
-local flyActive = false
 local flySpeed = 50
 local flyKey = "E"
-
-local noclipEnabled = false
-local noclipActive = false
 local noclipKey = "V"
 
 MiscTab:CreateToggle({
@@ -980,9 +1036,9 @@ MiscTab:CreateToggle({
     CurrentValue = false,
     Order = 1,
     Callback = function(valor)
-        flyEnabled = valor
+        EstadoGlobal.flyEnabled = valor
         if not valor then
-            flyActive = false
+            EstadoGlobal.flyActive = false
             if LocalPlayer.Character then
                 local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if hrp then hrp.Anchored = false end
@@ -1016,9 +1072,9 @@ MiscTab:CreateToggle({
     CurrentValue = false,
     Order = 4,
     Callback = function(valor)
-        noclipEnabled = valor
+        EstadoGlobal.noclipEnabled = valor
         if not valor then
-            noclipActive = false
+            EstadoGlobal.noclipActive = false
             if LocalPlayer.Character then
                 for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
                     if parte:IsA("BasePart") then
@@ -1041,7 +1097,7 @@ MiscTab:CreateKeybind({
 
 -- FLY: LÓGICA
 RunService.RenderStepped:Connect(function()
-    if not flyEnabled then return end
+    if not EstadoGlobal.flyEnabled then return end
 
     local personaje = LocalPlayer.Character
     if not personaje then return end
@@ -1052,7 +1108,7 @@ RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     if not cam then return end
 
-    if not flyActive then
+    if not EstadoGlobal.flyActive then
         if hrp.Anchored then hrp.Anchored = false end
         return
     end
@@ -1083,8 +1139,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
     if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
 
-    if nombre == flyKey and flyEnabled then
-        flyActive = not flyActive
+    if nombre == flyKey and EstadoGlobal.flyEnabled then
+        EstadoGlobal.flyActive = not EstadoGlobal.flyActive
     end
 end)
 
@@ -1099,27 +1155,23 @@ local function aplicarNoclip()
     end
 end
 
-local function quitarNoclip()
-    local personaje = LocalPlayer.Character
-    if not personaje then return end
-    for _, parte in ipairs(personaje:GetDescendants()) do
-        if parte:IsA("BasePart") then
-            parte.CanCollide = true
-        end
-    end
-end
-
 RunService.Stepped:Connect(function()
-    if noclipActive then
+    if EstadoGlobal.noclipActive then
         aplicarNoclip()
     end
 end)
 
 LocalPlayer.CharacterAdded:Connect(function()
-    noclipActive = false
-    flyActive = false
+    EstadoGlobal.noclipActive = false
+    EstadoGlobal.flyActive = false
     task.wait(0.5)
-    quitarNoclip()
+    if LocalPlayer.Character then
+        for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if parte:IsA("BasePart") then
+                pcall(function() parte.CanCollide = true end)
+            end
+        end
+    end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1130,12 +1182,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
     if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
 
-    if nombre == noclipKey and noclipEnabled then
-        noclipActive = not noclipActive
-        if not noclipActive then
-            quitarNoclip()
+    if nombre == noclipKey and EstadoGlobal.noclipEnabled then
+        EstadoGlobal.noclipActive = not EstadoGlobal.noclipActive
+        if not EstadoGlobal.noclipActive and LocalPlayer.Character then
+            for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if parte:IsA("BasePart") then
+                    pcall(function() parte.CanCollide = true end)
+                end
+            end
         end
     end
 end)
 
 print("[RyzeUI] Cargado correctamente ✅")
+print("[RyzeUI] Para limpiar manualmente: getgenv().RyzeUI_Limpiar()")
