@@ -755,8 +755,9 @@ local MiscTab = Window:CreateTab("MISC")
 -- BUILD: SCAN y PASTE
 -- ============================
 local RS = game:GetService("ReplicatedStorage")
-local scannedBuild = nil -- Aquí guardamos el escaneo
+local scannedBuild = nil
 local ghostFolder = nil
+local selectedTarget = nil
 
 BuildTab:CreateDropdown({
     Name = "Target Player",
@@ -773,7 +774,8 @@ BuildTab:CreateDropdown({
     CurrentOption = "None",
     Order = 1,
     Callback = function(opt)
-        BuildTab.Target = opt
+        selectedTarget = opt
+        print("[RyzeUI] Jugador seleccionado:", opt)
     end
 })
 
@@ -781,24 +783,24 @@ BuildTab:CreateButton({
     Name = "SCAN BUILD",
     Order = 2,
     Callback = function()
-        if not BuildTab.Target or BuildTab.Target == "None" then
+        if not selectedTarget or selectedTarget == "None" then
             return print("[RyzeUI] Selecciona un jugador primero")
         end
 
-        local target = Players:FindFirstChild(BuildTab.Target)
+        local target = Players:FindFirstChild(selectedTarget)
         if not target then return print("[RyzeUI] Jugador no encontrado") end
 
         local AirCrafts = workspace:FindFirstChild("PlayerAircraft")
-        local BuildZones = workspace:FindFirstChild("BuildingZones")
-        
-        if not AirCrafts or not BuildZones then
-            return print("[RyzeUI] No se encontró la zona de construcción")
+            or workspace:FindFirstChild("Aircrafts")
+        if not AirCrafts then
+            return print("[RyzeUI] No se encontró la carpeta de aeronaves")
         end
 
         local aircraft = AirCrafts:FindFirstChild(target.Name)
-        if not aircraft then return print("[RyzeUI] No se encontró la nave de " .. target.Name) end
+        if not aircraft then
+            return print("[RyzeUI] No se encontró la nave de " .. target.Name)
+        end
 
-        -- Guardar información de la estructura
         scannedBuild = {}
         scannedBuild.Origin = aircraft:GetPivot().Position
         scannedBuild.Parts = {}
@@ -827,28 +829,32 @@ BuildTab:CreateButton({
             return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
         end
 
-        -- Borrar ghost anterior si existe
         if ghostFolder then ghostFolder:Destroy() end
 
         ghostFolder = Instance.new("Folder")
         ghostFolder.Name = "RyzeUI_Ghost"
         ghostFolder.Parent = workspace
 
-        local basePos = LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position or Vector3.new(0,0,0)
+        local basePos
+        if LocalPlayer.Character then
+            basePos = LocalPlayer.Character:GetPivot().Position
+        else
+            basePos = Vector3.new(0, 0, 0)
+        end
 
         for _, partData in ipairs(scannedBuild.Parts) do
             local ghostPart = Instance.new("Part")
             ghostPart.Size = partData.Size
             ghostPart.Color = Colors.Ghost
             ghostPart.Material = Enum.Material.ForceField
-            ghostPart.Transparency = 0.7
+            ghostPart.Transparency = 0.5
             ghostPart.CanCollide = false
             ghostPart.Anchored = true
             ghostPart.Position = partData.Position - scannedBuild.Origin + basePos + Vector3.new(0, 5, 0)
             ghostPart.Parent = ghostFolder
         end
 
-        print("[RyzeUI] Plano mostrado. " .. #scannedBuild.Parts .. " bloques fantasma")
+        print("[RyzeUI] Plano mostrado: " .. #scannedBuild.Parts .. " bloques fantasma")
     end
 })
 
