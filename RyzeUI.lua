@@ -1,36 +1,3 @@
-Skip to content
-RyzeCode
-planecrazy
-Repository navigation
-Code
-Issues
-Pull requests
-Actions
-Projects
-Wiki
-Security and quality
-Insights
-Settings
-Files
-Go to file
-t
-T
-RyzeUI.lua
-planecrazy
-/RyzeUI.lua
-RyzeCode
-RyzeCode
-Update RyzeUI.lua
-ef1ddbe
- · 
-8 minutes ago
-planecrazy
-/RyzeUI.lua
-
-Code
-
-Blame
-2141 lines (2046 loc) · 130 KB
 --========================================================
 -- PLANE CRAZY - BUILD COPY SCRIPT (CORREGIDO COMPLETO)
 -- Autor original: niikkzx
@@ -2138,7 +2105,6 @@ else
     wait(0.261)
     Copy.Text = "Copy"
     Copy.TextColor3 = Color3.fromRGB(0,0,0)
-    end
 end)
 
 --========================================================
