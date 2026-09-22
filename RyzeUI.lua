@@ -13,7 +13,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============================
--- ESTADO GLOBAL (para limpieza)
+-- ESTADO GLOBAL
 -- ============================
 local EstadoGlobal = {
     flyEnabled = false,
@@ -21,6 +21,8 @@ local EstadoGlobal = {
     noclipEnabled = false,
     noclipActive = false,
     ghostFolder = nil,
+    escalaPlano = 1.0,     -- Factor de escala del plano (1 = normal)
+    distanciaPlano = 50,   -- Distancia del plano respecto a ti
 }
 
 -- ============================
@@ -36,9 +38,7 @@ local function limpiarTodo()
 
     if LocalPlayer.Character then
         local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            pcall(function() hrp.Anchored = false end)
-        end
+        if hrp then pcall(function() hrp.Anchored = false end) end
     end
 
     if LocalPlayer.Character then
@@ -808,9 +808,7 @@ local MiscTab = Window:CreateTab("MISC")
 -- BUILD: SCAN, PASTE, AUTO BUILD, CLEAR
 -- ============================
 local scannedBuild = nil
-local selectedTarget = nil
-
-BuildTab:CreateDropdown({
+local selectedTarget = nilBuildTab:CreateDropdown({
     Name = "Target Player",
     Options = (function()
         local list = {}
@@ -827,6 +825,21 @@ BuildTab:CreateDropdown({
     Callback = function(opt)
         selectedTarget = opt
         print("[RyzeUI] Jugador seleccionado:", opt)
+    end
+})
+
+BuildTab:CreateSlider({
+    Name = "Escala del Plano",
+    Min = 1,
+    Max = 5,
+    CurrentValue = 1,
+    Order = 1.5,
+    Callback = function(valor)
+        -- El slider da valores enteros (1-5). Los dividimos para tener escala 0.2 a 1.0
+        -- 1 = 1x (tamaño real)
+        -- 5 = 0.2x (muy pequeño)
+        EstadoGlobal.escalaPlano = 1.0 / valor
+        print("[RyzeUI] Escala del plano:", EstadoGlobal.escalaPlano)
     end
 })
 
@@ -904,6 +917,28 @@ BuildTab:CreateButton({
             return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
         end
 
+        -- Detectar en qué base estás
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return print("[RyzeUI] No se encontró tu personaje") end
+
+        local buildZones = workspace:FindFirstChild("BuildingZones")
+        local miBase = nil
+        if buildZones then
+            for _, zona in ipairs(buildZones:GetChildren()) do
+                local owner = zona:FindFirstChild("Owner")
+                if owner and tostring(owner.Value) == LocalPlayer.Name then
+                    miBase = zona
+                    break
+                end
+            end
+        end
+
+        if miBase then
+            print("[RyzeUI] Estás en tu base: " .. miBase.Name)
+        else
+            print("[RyzeUI] ⚠️ No estás en tu base. El plano puede aparecer mal.")
+        end
+
         if EstadoGlobal.ghostFolder then
             EstadoGlobal.ghostFolder:Destroy()
         end
@@ -913,7 +948,7 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        -- 1. Calcular el CENTRO REAL de la estructura escaneada
+        -- Calcular el centro real
         local minX, minY, minZ = math.huge, math.huge, math.huge
         local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 
@@ -932,27 +967,30 @@ BuildTab:CreateButton({
             (minZ + maxZ) / 2
         )
 
-        -- 2. Calcular la posición base: delante de ti a 15 studs
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        -- Posición base: si estás en tu base, delante de ti. Si no, en el centro de tu base
         local basePos
-        if hrp then
+        if miBase then
+            basePos = miBase.Position + Vector3.new(0, 10, 0)
+        elseif hrp then
             local cam = workspace.CurrentCamera
             local lookDir = cam.CFrame.LookVector
-            basePos = hrp.Position + Vector3.new(lookDir.X * 15, 0, lookDir.Z * 15)
+            basePos = hrp.Position + Vector3.new(lookDir.X * EstadoGlobal.distanciaPlano, 0, lookDir.Z * EstadoGlobal.distanciaPlano)
         else
             basePos = Vector3.new(0, 10, 0)
         end
 
         print("[RyzeUI] Centro de la nave:", tostring(centroReal))
         print("[RyzeUI] Base para el plano:", tostring(basePos))
+        print("[RyzeUI] Escala aplicada:", EstadoGlobal.escalaPlano)
 
-        -- 3. Crear los fantasmas centrados alrededor de ti
+        -- Crear los fantasmas
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
-            local relativePos = partData.Position - centroReal
+            local relativePos = (partData.Position - centroReal) * EstadoGlobal.escalaPlano
+            local scaledSize = partData.Size * EstadoGlobal.escalaPlano
 
             local ghostPart = Instance.new("Part")
-            ghostPart.Size = partData.Size
+            ghostPart.Size = scaledSize
             ghostPart.Color = Colors.Ghost
             ghostPart.Material = Enum.Material.ForceField
             ghostPart.Transparency = 0.5
@@ -964,7 +1002,7 @@ BuildTab:CreateButton({
         end
 
         print("[RyzeUI] Plano mostrado: " .. count .. " bloques fantasma")
-        print("[RyzeUI] Tamaño aproximado: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
+        print("[RyzeUI] Tamaño original: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
     end
 })
 
