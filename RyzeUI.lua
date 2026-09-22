@@ -885,7 +885,8 @@ BuildTab:CreateButton({
                     Size = part.Size,
                     Color = part.Color,
                     Material = part.Material,
-                    CFrame = part.CFrame
+                    CFrame = part.CFrame,
+                    ClassName = part.ClassName
                 })
             end
         end
@@ -911,7 +912,7 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        -- 1. Calcular el CENTRO REAL de la estructura escaneada
+        -- 1. Calcular centro y tamaño real
         local minX, minY, minZ = math.huge, math.huge, math.huge
         local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 
@@ -930,41 +931,39 @@ BuildTab:CreateButton({
             (minZ + maxZ) / 2
         )
 
-        -- 2. Buscar MI BASE y usar su centro
-        local basePos = nil
-        local buildZones = workspace:FindFirstChild("BuildingZones")
-        if buildZones then
-            for _, zona in ipairs(buildZones:GetChildren()) do
-                local owner = zona:FindFirstChild("Owner")
-                if owner and tostring(owner.Value) == LocalPlayer.Name then
-                    basePos = zona.Position
-                    print("[RyzeUI] Base encontrada:", zona.Name)
-                    break
-                end
-            end
+        local tamanoX = maxX - minX
+        local tamanoY = maxY - minY
+        local tamanoZ = maxZ - minZ
+
+        -- 2. Escala automática si es demasiado grande
+        local escala = 1
+        local tamanoMax = math.max(tamanoX, tamanoY, tamanoZ)
+        if tamanoMax > 100 then
+            escala = 100 / tamanoMax
         end
 
-        -- 3. Si no encuentra mi base, usar la posición del personaje
-        if not basePos then
-            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                basePos = hrp.Position
-                print("[RyzeUI] ⚠️ No se encontró tu base. Usando tu posición.")
-            else
-                basePos = Vector3.new(0, 10, 0)
-            end
+        -- 3. Posición base: usar la posición del personaje + 20 studs hacia arriba
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local basePos
+        if hrp then
+            basePos = hrp.Position + Vector3.new(0, 20, 0)
+        else
+            basePos = Vector3.new(0, 50, 0)
         end
 
         print("[RyzeUI] Centro de la nave:", tostring(centroReal))
         print("[RyzeUI] Base para el plano:", tostring(basePos))
+        print("[RyzeUI] Tamaño original:", tamanoX, tamanoY, tamanoZ)
+        print("[RyzeUI] Escala aplicada:", escala)
 
-        -- 4. Crear TODAS las piezas centradas en tu base
+        -- 4. Crear TODAS las piezas centradas y escaladas
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
-            local relativePos = partData.Position - centroReal
+            local relativePos = (partData.Position - centroReal) * escala
+            local scaledSize = partData.Size * escala
 
             local ghostPart = Instance.new("Part")
-            ghostPart.Size = partData.Size
+            ghostPart.Size = scaledSize
             ghostPart.Color = Colors.Ghost
             ghostPart.Material = Enum.Material.ForceField
             ghostPart.Transparency = 0.5
@@ -976,7 +975,6 @@ BuildTab:CreateButton({
         end
 
         print("[RyzeUI] Plano mostrado: " .. count .. " bloques fantasma")
-        print("[RyzeUI] Tamaño aproximado: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
     end
 })
 
