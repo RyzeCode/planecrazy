@@ -3,7 +3,6 @@
 -- Autor: Ryze
 
 local RyzeUI = {}
-
 RyzeUI.Version = "1.0.0"
 RyzeUI.Name = "RyzeUI"
 
@@ -23,45 +22,6 @@ local EstadoGlobal = {
     ghostFolder = nil,
     escalaPlano = 1,
 }
-
--- ============================
--- FUNCIÓN DE LIMPIEZA
--- ============================
-local function limpiarTodo()
-    if EstadoGlobal.ghostFolder then
-        pcall(function() EstadoGlobal.ghostFolder:Destroy() end)
-        EstadoGlobal.ghostFolder = nil
-    end
-    local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
-    if ghost then ghost:Destroy() end
-
-    if LocalPlayer.Character then
-        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then pcall(function() hrp.Anchored = false end) end
-    end
-
-    if LocalPlayer.Character then
-        for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if parte:IsA("BasePart") then
-                pcall(function() parte.CanCollide = true end)
-            end
-        end
-    end
-
-    EstadoGlobal.flyEnabled = false
-    EstadoGlobal.flyActive = false
-    EstadoGlobal.noclipEnabled = false
-    EstadoGlobal.noclipActive = false
-
-    local ui = game.CoreGui:FindFirstChild("RyzeUI_Screen")
-    if ui then ui:Destroy() end
-
-    print("[RyzeUI] Todo limpio ✅")
-end
-
-if getgenv then
-    getgenv().RyzeUI_Limpiar = limpiarTodo
-end
 
 -- ============================
 -- COLORES
@@ -102,6 +62,45 @@ local function keyName(userInputType)
     local name = userInputType.Name
     name = name:gsub("Enum.UserInputType.", "")
     return name
+end
+
+-- ============================
+-- FUNCIÓN DE LIMPIEZA
+-- ============================
+local function limpiarTodo()
+    if EstadoGlobal.ghostFolder then
+        pcall(function() EstadoGlobal.ghostFolder:Destroy() end)
+        EstadoGlobal.ghostFolder = nil
+    end
+    local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
+    if ghost then ghost:Destroy() end
+
+    if LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then pcall(function() hrp.Anchored = false end) end
+    end
+
+    if LocalPlayer.Character then
+        for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if parte:IsA("BasePart") then
+                pcall(function() parte.CanCollide = true end)
+            end
+        end
+    end
+
+    EstadoGlobal.flyEnabled = false
+    EstadoGlobal.flyActive = false
+    EstadoGlobal.noclipEnabled = false
+    EstadoGlobal.noclipActive = false
+
+    local ui = game.CoreGui:FindFirstChild("RyzeUI_Screen")
+    if ui then ui:Destroy() end
+
+    print("[RyzeUI] Todo limpio ✅")
+end
+
+if getgenv then
+    getgenv().RyzeUI_Limpiar = limpiarTodo
 end
 
 -- ============================
@@ -286,9 +285,7 @@ function RyzeUI:CreateWindow(config)
         or input.UserInputType == Enum.UserInputType.Touch then
             local delta = input.Position - bubbleStartMouse
             local seMovio = math.abs(delta.X) > 5 or math.abs(delta.Y) > 5
-
             bubbleDragging = false
-
             if not seMovio then
                 bubble.Visible = false
                 mainFrame.Visible = true
@@ -553,15 +550,12 @@ function RyzeUI:CreateWindow(config)
                 local barAbsX = bar.AbsolutePosition.X
                 local barAbsWidth = bar.AbsoluteSize.X
                 if barAbsWidth <= 0 then return end
-
                 local relative = math.clamp((inputX - barAbsX) / barAbsWidth, 0, 1)
                 local newValue = math.floor(minValue + (maxValue - minValue) * relative + 0.5)
-
                 currentValue = newValue
                 fill.Size = UDim2.new(relative, 0, 1, 0)
                 knob.Position = UDim2.new(relative, -8, 0.5, -8)
                 valueLabel.Text = tostring(newValue)
-
                 pcall(callback, newValue)
             end
 
@@ -686,20 +680,16 @@ function RyzeUI:CreateWindow(config)
                     optionList.Visible = false
                     return
                 end
-
                 local absPos = container.AbsolutePosition
                 local absSize = container.AbsoluteSize
                 local listHeight = #options * 28
                 local screenHeight = screenGui.AbsoluteSize.Y
-
                 optionList.Size = UDim2.new(0, absSize.X, 0, listHeight)
-
                 if absPos.Y + absSize.Y + listHeight < screenHeight then
                     optionList.Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 4)
                 else
                     optionList.Position = UDim2.new(0, absPos.X, 0, absPos.Y - listHeight - 4)
                 end
-
                 optionList.Visible = true
             end)
 
@@ -712,7 +702,6 @@ function RyzeUI:CreateWindow(config)
             local defaultKey = keybindConfig.DefaultKey or "F"
             local callback = keybindConfig.Callback or function() end
             local order = keybindConfig.Order or 0
-
             local currentKey = defaultKey
 
             local button = Instance.new("TextButton")
@@ -745,19 +734,15 @@ function RyzeUI:CreateWindow(config)
             UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 if not esperando then return end
                 if tick() - tiempoActivacion < 0.2 then return end
-
                 if input.UserInputType == Enum.UserInputType.MouseMovement
                 or input.UserInputType == Enum.UserInputType.MouseWheel then
                     return
                 end
-
                 esperando = false
-
                 local nombreBonito = keyName(input.UserInputType)
                 if input.UserInputType == Enum.UserInputType.Keyboard then
                     nombreBonito = input.KeyCode.Name
                 end
-
                 currentKey = nombreBonito
                 button.Text = keybindName .. ": " .. tostring(currentKey)
                 pcall(callback, currentKey, input)
@@ -853,10 +838,8 @@ BuildTab:CreateButton({
         if not target then return print("[RyzeUI] Jugador no encontrado") end
 
         local aircraft = nil
-
         local playerAircraft = workspace:FindFirstChild("PlayerAircraft")
-        if playerAircraft then
-            aircraft = playerAircraft:FindFirstChild(target.Name)
+        if playerAircraft then            aircraft = playerAircraft:FindFirstChild(target.Name)
         end
         if not aircraft then
             aircraft = workspace:FindFirstChild(target.Name .. " Aircraft")
@@ -900,16 +883,13 @@ BuildTab:CreateButton({
                     Transparency = part.Transparency,
                     Name = part.Name,
                 }
-
                 if part:IsA("MeshPart") then
                     info.MeshId = part.MeshId
                     info.TextureID = part.TextureID
                 end
-
                 if part:IsA("Part") then
                     info.Shape = part.Shape
                 end
-
                 table.insert(scannedBuild.Parts, info)
             end
         end
@@ -923,12 +903,9 @@ BuildTab:CreateButton({
     Order = 4,
     Callback = function()
         print("[RyzeUI] === PASTE INICIADO ===")
-
         if not scannedBuild then
-            return print("[RyzeUI] ❌ Primero escanea una build con SCAN BUILD")
+            return print("[RyzeUI] ❌ Primero escanea con SCAN BUILD")
         end
-
-        print("[RyzeUI] Bloques escaneados:", #scannedBuild.Parts)
 
         local ghostAnterior = workspace:FindFirstChild("RyzeUI_Ghost")
         if ghostAnterior then ghostAnterior:Destroy() end
@@ -960,13 +937,7 @@ BuildTab:CreateButton({
         end
 
         local offsetY = -((minY - centroY) * escala)
-
-        print("[RyzeUI] Base del plano:", tostring(basePos))
-        print("[RyzeUI] Offset Y:", offsetY)
-        print("[RyzeUI] Escala:", escala)
-
         local count = 0
-        local errores = 0
 
         for i, partData in ipairs(scannedBuild.Parts) do
             local relativePos = (partData.Position - Vector3.new(0, centroY, 0)) * escala
@@ -975,11 +946,11 @@ BuildTab:CreateButton({
 
             local ok = pcall(function()
                 local ghostPart
-                if partData.ClassName == "MeshPart" then
+                if partData.ClassName == "MeshPart"
+                    and partData.MeshId
+                    and partData.MeshId ~= "" then
                     ghostPart = Instance.new("MeshPart")
-                    if partData.MeshId and partData.MeshId ~= "" then
-                        ghostPart.MeshId = partData.MeshId
-                    end
+                    ghostPart.MeshId = partData.MeshId
                     if partData.TextureID and partData.TextureID ~= "" then
                         ghostPart.TextureID = partData.TextureID
                     end
@@ -989,7 +960,6 @@ BuildTab:CreateButton({
                         pcall(function() ghostPart.Shape = partData.Shape end)
                     end
                 end
-
                 ghostPart.Name = "Ghost_" .. i
                 ghostPart.Size = scaledSize
                 ghostPart.Color = Colors.Ghost
@@ -1001,16 +971,10 @@ BuildTab:CreateButton({
                 ghostPart.Parent = ghostFolder
             end)
 
-            if ok then
-                count = count + 1
-            else
-                errores = errores + 1
-            end
+            if ok then count = count + 1 end
         end
 
         print("[RyzeUI] ✅ Fantasmas creados: " .. count)
-        print("[RyzeUI] ❌ Errores: " .. errores)
-        print("[RyzeUI] Hijos del ghostFolder:", #ghostFolder:GetChildren())
     end
 })
 
@@ -1055,9 +1019,7 @@ MiscTab:CreateKeybind({
     Name = "Fly Key",
     DefaultKey = "E",
     Order = 2,
-    Callback = function(nombre, input)
-        flyKey = nombre
-    end
+    Callback = function(nombre, input) flyKey = nombre end
 })
 
 MiscTab:CreateSlider({
@@ -1066,9 +1028,7 @@ MiscTab:CreateSlider({
     Max = 100,
     CurrentValue = 50,
     Order = 3,
-    Callback = function(valor)
-        flySpeed = valor
-    end
+    Callback = function(valor) flySpeed = valor end
 })
 
 MiscTab:CreateToggle({
@@ -1094,9 +1054,7 @@ MiscTab:CreateKeybind({
     Name = "Noclip Key",
     DefaultKey = "V",
     Order = 5,
-    Callback = function(nombre, input)
-        noclipKey = nombre
-    end
+    Callback = function(nombre, input) noclipKey = nombre end
 })
 
 RunService.RenderStepped:Connect(function()
@@ -1187,3 +1145,256 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 print("[RyzeUI] Cargado correctamente ✅")
+
+return RyzeUI        end
+
+        print("[RyzeUI] Bloques escaneados:", #scannedBuild.Parts)
+
+        local ghostAnterior = workspace:FindFirstChild("RyzeUI_Ghost")
+        if ghostAnterior then ghostAnterior:Destroy() end
+
+        local ghostFolder = Instance.new("Folder")
+        ghostFolder.Name = "RyzeUI_Ghost"
+        ghostFolder.Parent = workspace
+        EstadoGlobal.ghostFolder = ghostFolder
+
+        local minY, maxY = math.huge, -math.huge
+        for _, partData in ipairs(scannedBuild.Parts) do
+            minY = math.min(minY, partData.Position.Y)
+            maxY = math.max(maxY, partData.Position.Y)
+        end
+        local centroY = (minY + maxY) / 2
+
+        local escala = 1 / EstadoGlobal.escalaPlano
+
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local cam = workspace.CurrentCamera
+        local basePos
+        if hrp and cam then
+            local lookDir = cam.CFrame.LookVector
+            basePos = hrp.Position + Vector3.new(lookDir.X * 15, 0, lookDir.Z * 15)
+        elseif hrp then
+            basePos = hrp.Position + Vector3.new(0, 0, 15)
+        else
+            basePos = Vector3.new(0, 50, 0)
+        end
+
+        local offsetY = -((minY - centroY) * escala)
+
+        print("[RyzeUI] Base del plano:", tostring(basePos))
+        print("[RyzeUI] Offset Y:", offsetY)
+        print("[RyzeUI] Escala:", escala)
+
+        local count = 0
+        local errores = 0
+
+        for i, partData in ipairs(scannedBuild.Parts) do
+            local relativePos = (partData.Position - Vector3.new(0, centroY, 0)) * escala
+            local scaledSize = partData.Size * escala
+            local posFinal = basePos + relativePos + Vector3.new(0, offsetY, 0)
+
+            local ok = pcall(function()
+                local ghostPart
+                if partData.ClassName == "MeshPart"
+                    and partData.MeshId
+                    and partData.MeshId ~= "" then
+                    ghostPart = Instance.new("MeshPart")
+                    ghostPart.MeshId = partData.MeshId
+                    if partData.TextureID and partData.TextureID ~= "" then
+                        ghostPart.TextureID = partData.TextureID
+                    end
+                else
+                    ghostPart = Instance.new("Part")
+                    if partData.ClassName == "Part" and partData.Shape then
+                        pcall(function() ghostPart.Shape = partData.Shape end)
+                    end
+                end
+                ghostPart.Name = "Ghost_" .. i
+                ghostPart.Size = scaledSize
+                ghostPart.Color = Colors.Ghost
+                ghostPart.Material = Enum.Material.ForceField
+                ghostPart.Transparency = 0.5
+                ghostPart.CanCollide = false
+                ghostPart.Anchored = true
+                ghostPart.Position = posFinal
+                ghostPart.Parent = ghostFolder
+            end)
+
+            if ok then
+                count = count + 1
+            else
+                errores = errores + 1
+            end
+        end
+
+        print("[RyzeUI] Fantasmas creados: " .. count)
+        print("[RyzeUI] Errores: " .. errores)
+        print("[RyzeUI] Hijos del ghostFolder:", #ghostFolder:GetChildren())
+    end
+})
+
+BuildTab:CreateButton({
+    Name = "CLEAR PASTE",
+    Order = 5,
+    Callback = function()
+        if EstadoGlobal.ghostFolder then
+            EstadoGlobal.ghostFolder:Destroy()
+            EstadoGlobal.ghostFolder = nil
+            print("[RyzeUI] Plano eliminado")
+        end
+        local ghost = workspace:FindFirstChild("RyzeUI_Ghost")
+        if ghost then ghost:Destroy() end
+    end
+})
+
+-- MISC
+local flySpeed = 50
+local flyKey = "E"
+local noclipKey = "V"
+
+MiscTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = false,
+    Order = 1,
+    Callback = function(valor)
+        EstadoGlobal.flyEnabled = valor
+        if not valor then
+            EstadoGlobal.flyActive = false
+            if LocalPlayer.Character then
+                local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then hrp.Anchored = false end
+            end
+        end
+    end
+})
+
+MiscTab:CreateKeybind({
+    Name = "Fly Key",
+    DefaultKey = "E",
+    Order = 2,
+    Callback = function(nombre, input) flyKey = nombre end
+})
+
+MiscTab:CreateSlider({
+    Name = "Fly Speed",
+    Min = 1,
+    Max = 100,
+    CurrentValue = 50,
+    Order = 3,
+    Callback = function(valor) flySpeed = valor end
+})
+
+MiscTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Order = 4,
+    Callback = function(valor)
+        EstadoGlobal.noclipEnabled = valor
+        if not valor then
+            EstadoGlobal.noclipActive = false
+            if LocalPlayer.Character then
+                for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+                    if parte:IsA("BasePart") then
+                        pcall(function() parte.CanCollide = true end)
+                    end
+                end
+            end
+        end
+    end
+})
+
+MiscTab:CreateKeybind({
+    Name = "Noclip Key",
+    DefaultKey = "V",
+    Order = 5,
+    Callback = function(nombre, input) noclipKey = nombre end
+})
+
+RunService.RenderStepped:Connect(function()
+    if not EstadoGlobal.flyEnabled then return end
+    local personaje = LocalPlayer.Character
+    if not personaje then return end
+    local hrp = personaje:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    if not EstadoGlobal.flyActive then
+        if hrp.Anchored then hrp.Anchored = false end
+        return
+    end
+    hrp.Anchored = true
+    local velocidad = flySpeed / 10
+    local direccion = Vector3.new(0, 0, 0)
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then direccion = direccion + cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then direccion = direccion - cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then direccion = direccion - cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then direccion = direccion + cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then direccion = direccion + Vector3.new(0, 1, 0) end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then direccion = direccion - Vector3.new(0, 1, 0) end
+    if direccion.Magnitude > 0 then
+        direccion = direccion.Unit * velocidad
+        hrp.CFrame = hrp.CFrame + direccion
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    local nombre = input.UserInputType.Name
+    if input.UserInputType == Enum.UserInputType.Keyboard then nombre = input.KeyCode.Name end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then nombre = "Clic Izquierdo" end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
+    if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
+    if nombre == flyKey and EstadoGlobal.flyEnabled then
+        EstadoGlobal.flyActive = not EstadoGlobal.flyActive
+    end
+end)
+
+local function aplicarNoclip()
+    local personaje = LocalPlayer.Character
+    if not personaje then return end
+    for _, parte in ipairs(personaje:GetDescendants()) do
+        if parte:IsA("BasePart") and parte.CanCollide then
+            parte.CanCollide = false
+        end
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if EstadoGlobal.noclipActive then
+        aplicarNoclip()
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    EstadoGlobal.noclipActive = false
+    EstadoGlobal.flyActive = false
+    task.wait(0.5)
+    if LocalPlayer.Character then
+        for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if parte:IsA("BasePart") then
+                pcall(function() parte.CanCollide = true end)
+            end
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    local nombre = input.UserInputType.Name
+    if input.UserInputType == Enum.UserInputType.Keyboard then nombre = input.KeyCode.Name end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then nombre = "Clic Izquierdo" end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
+    if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
+    if nombre == noclipKey and EstadoGlobal.noclipEnabled then
+        EstadoGlobal.noclipActive = not EstadoGlobal.noclipActive
+        if not EstadoGlobal.noclipActive and LocalPlayer.Character then
+            for _, parte in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if parte:IsA("BasePart") then
+                    pcall(function() parte.CanCollide = true end)
+                end
+            end
+        end
+    end
+end)
+
+print("[RyzeUI] Cargado correctamente")
