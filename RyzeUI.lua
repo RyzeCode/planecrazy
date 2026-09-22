@@ -858,15 +858,12 @@ BuildTab:CreateButton({
         if playerAircraft then
             aircraft = playerAircraft:FindFirstChild(target.Name)
         end
-
         if not aircraft then
             aircraft = workspace:FindFirstChild(target.Name .. " Aircraft")
         end
-
         if not aircraft then
             aircraft = workspace:FindFirstChild(target.Name)
         end
-
         if not aircraft then
             local buildZones = workspace:FindFirstChild("BuildingZones")
             if buildZones then
@@ -885,7 +882,7 @@ BuildTab:CreateButton({
             return print("[RyzeUI] No se encontró la nave de " .. target.Name)
         end
 
-        print("[RyzeUI] Nave encontrada: " .. aircraft.Name .. " (" .. aircraft.ClassName .. ")")
+        print("[RyzeUI] Nave encontrada: " .. aircraft.Name)
 
         scannedBuild = {}
         scannedBuild.Origin = aircraft:GetPivot().Position
@@ -893,14 +890,27 @@ BuildTab:CreateButton({
 
         for _, part in ipairs(aircraft:GetDescendants()) do
             if part:IsA("BasePart") then
-                table.insert(scannedBuild.Parts, {
+                local info = {
                     Position = part.Position,
                     Size = part.Size,
                     Color = part.Color,
                     Material = part.Material,
                     CFrame = part.CFrame,
-                    ClassName = part.ClassName
-                })
+                    ClassName = part.ClassName,
+                    Transparency = part.Transparency,
+                    Name = part.Name,
+                }
+
+                if part:IsA("MeshPart") then
+                    info.MeshId = part.MeshId
+                    info.TextureID = part.TextureID
+                end
+
+                if part:IsA("Part") then
+                    info.Shape = part.Shape
+                end
+
+                table.insert(scannedBuild.Parts, info)
             end
         end
 
@@ -925,57 +935,46 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        -- Calcular centro y tamaño real
-        local minX, minY, minZ = math.huge, math.huge, math.huge
-        local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
-
+        local minY, maxY = math.huge, -math.huge
         for _, partData in ipairs(scannedBuild.Parts) do
-            minX = math.min(minX, partData.Position.X)
             minY = math.min(minY, partData.Position.Y)
-            minZ = math.min(minZ, partData.Position.Z)
-            maxX = math.max(maxX, partData.Position.X)
             maxY = math.max(maxY, partData.Position.Y)
-            maxZ = math.max(maxZ, partData.Position.Z)
         end
+        local centroY = (minY + maxY) / 2
 
-        local centroReal = Vector3.new(
-            (minX + maxX) / 2,
-            (minY + maxY) / 2,
-            (minZ + maxZ) / 2
-        )
-
-        local tamanoX = maxX - minX
-        local tamanoY = maxY - minY
-        local tamanoZ = maxZ - minZ
-
-        -- Escala del slider (1 = real, 10 = más pequeño)
         local escala = 1 / EstadoGlobal.escalaPlano
 
-        -- Posición base: tu personaje
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local basePos
-        if hrp then
-            basePos = hrp.Position
-        else
-            basePos = Vector3.new(0, 50, 0)
-        end
+        local basePos = hrp and hrp.Position or Vector3.new(0, 50, 0)
 
-        -- 🔑 CLAVE: Calcular cuánto subir el plano para que NO se hunda
-        local offsetY = -((minY - centroReal.Y) * escala)
+        local offsetY = -((minY - centroY) * escala)
 
-        print("[RyzeUI] Centro de la nave:", tostring(centroReal))
-        print("[RyzeUI] Base para el plano:", tostring(basePos))
-        print("[RyzeUI] Tamaño original:", tamanoX, tamanoY, tamanoZ)
-        print("[RyzeUI] Escala aplicada:", escala)
-        print("[RyzeUI] Offset Y para no hundirse:", offsetY)
+        print("[RyzeUI] Base:", tostring(basePos))
+        print("[RyzeUI] Escala:", escala)
+        print("[RyzeUI] Offset Y:", offsetY)
 
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
-            local relativePos = (partData.Position - centroReal) * escala
+            local relativePos = (partData.Position - Vector3.new(0, centroY, 0)) * escala
             local scaledSize = partData.Size * escala
 
-            local ghostPart = Instance.new("Part")
-            ghostPart.Size = scaledSize
+            local ghostPart
+            if partData.ClassName == "MeshPart" then
+                ghostPart = Instance.new("MeshPart")
+                ghostPart.MeshId = partData.MeshId or ""
+                ghostPart.TextureID = partData.TextureID or ""
+                ghostPart.Size = scaledSize
+            elseif partData.ClassName == "Part" then
+                ghostPart = Instance.new("Part")
+                ghostPart.Size = scaledSize
+                if partData.Shape then
+                    ghostPart.Shape = partData.Shape
+                end
+            else
+                ghostPart = Instance.new("Part")
+                ghostPart.Size = scaledSize
+            end
+
             ghostPart.Color = Colors.Ghost
             ghostPart.Material = Enum.Material.ForceField
             ghostPart.Transparency = 0.5
@@ -1077,33 +1076,25 @@ MiscTab:CreateKeybind({
 
 RunService.RenderStepped:Connect(function()
     if not EstadoGlobal.flyEnabled then return end
-
     local personaje = LocalPlayer.Character
     if not personaje then return end
-
     local hrp = personaje:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
     local cam = workspace.CurrentCamera
     if not cam then return end
-
     if not EstadoGlobal.flyActive then
         if hrp.Anchored then hrp.Anchored = false end
         return
     end
-
     hrp.Anchored = true
-
     local velocidad = flySpeed / 10
     local direccion = Vector3.new(0, 0, 0)
-
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then direccion = direccion + cam.CFrame.LookVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.S) then direccion = direccion - cam.CFrame.LookVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.A) then direccion = direccion - cam.CFrame.RightVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.D) then direccion = direccion + cam.CFrame.RightVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.Space) then direccion = direccion + Vector3.new(0, 1, 0) end
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then direccion = direccion - Vector3.new(0, 1, 0) end
-
     if direccion.Magnitude > 0 then
         direccion = direccion.Unit * velocidad
         hrp.CFrame = hrp.CFrame + direccion
@@ -1117,7 +1108,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then nombre = "Clic Izquierdo" end
     if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
     if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
-
     if nombre == flyKey and EstadoGlobal.flyEnabled then
         EstadoGlobal.flyActive = not EstadoGlobal.flyActive
     end
@@ -1159,7 +1149,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then nombre = "Clic Izquierdo" end
     if input.UserInputType == Enum.UserInputType.MouseButton2 then nombre = "Clic Derecho" end
     if input.UserInputType == Enum.UserInputType.MouseButton3 then nombre = "Clic Central" end
-
     if nombre == noclipKey and EstadoGlobal.noclipEnabled then
         EstadoGlobal.noclipActive = not EstadoGlobal.noclipActive
         if not EstadoGlobal.noclipActive and LocalPlayer.Character then
