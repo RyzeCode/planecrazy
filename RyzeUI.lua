@@ -754,7 +754,6 @@ local MiscTab = Window:CreateTab("MISC")
 -- ============================
 -- BUILD: SCAN y PASTE
 -- ============================
-local RS = game:GetService("ReplicatedStorage")
 local scannedBuild = nil
 local ghostFolder = nil
 local selectedTarget = nil
@@ -790,16 +789,44 @@ BuildTab:CreateButton({
         local target = Players:FindFirstChild(selectedTarget)
         if not target then return print("[RyzeUI] Jugador no encontrado") end
 
-        local AirCrafts = workspace:FindFirstChild("PlayerAircraft")
-            or workspace:FindFirstChild("Aircrafts")
-        if not AirCrafts then
-            return print("[RyzeUI] No se encontró la carpeta de aeronaves")
+        local aircraft = nil
+
+        -- 1. Buscar dentro de PlayerAircraft
+        local playerAircraft = workspace:FindFirstChild("PlayerAircraft")
+        if playerAircraft then
+            aircraft = playerAircraft:FindFirstChild(target.Name)
         end
 
-        local aircraft = AirCrafts:FindFirstChild(target.Name)
+        -- 2. Buscar en workspace con sufijo " Aircraft"
+        if not aircraft then
+            aircraft = workspace:FindFirstChild(target.Name .. " Aircraft")
+        end
+
+        -- 3. Buscar en workspace por nombre exacto
+        if not aircraft then
+            aircraft = workspace:FindFirstChild(target.Name)
+        end
+
+        -- 4. Buscar dentro de la Build Zone
+        if not aircraft then
+            local buildZones = workspace:FindFirstChild("BuildingZones")
+            if buildZones then
+                for _, zona in ipairs(buildZones:GetChildren()) do
+                    if zona.Name:find(target.Name) then
+                        aircraft = zona:FindFirstChild("Aircraft")
+                            or zona:FindFirstChild("Vehicle")
+                            or zona:FindFirstChild(target.Name)
+                        if aircraft then break end
+                    end
+                end
+            end
+        end
+
         if not aircraft then
             return print("[RyzeUI] No se encontró la nave de " .. target.Name)
         end
+
+        print("[RyzeUI] Nave encontrada: " .. aircraft.Name .. " (" .. aircraft.ClassName .. ")")
 
         scannedBuild = {}
         scannedBuild.Origin = aircraft:GetPivot().Position
