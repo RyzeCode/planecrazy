@@ -1,7 +1,40 @@
+Skip to content
+RyzeCode
+planecrazy
+Repository navigation
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security and quality
+Insights
+Settings
+Files
+Go to file
+t
+T
+RyzeUI.lua
+planecrazy
+/RyzeUI.lua
+RyzeCode
+RyzeCode
+Update RyzeUI.lua
+ef1ddbe
+ · 
+8 minutes ago
+planecrazy
+/RyzeUI.lua
+
+Code
+
+Blame
+2141 lines (2046 loc) · 130 KB
 --========================================================
 -- PLANE CRAZY - BUILD COPY SCRIPT (CORREGIDO COMPLETO)
 -- Autor original: niikkzx
--- Correcciones: PlayerAircraft -> P1ayerAircraft
+-- Correcciones: P1ayerAircraft -> P1ayerAircraft
 -- Parte 1/4: UI + Configuración inicial
 --========================================================
 
@@ -157,7 +190,7 @@ end)
 
 Copy.MouseButton1Click:Connect(function()
     canceled = false
-    -- ✅ CORRECCIÓN: P1ayerAircraft en lugar de PlayerAircraft
+    -- ✅ CORRECCIÓN: P1ayerAircraft en lugar de P1ayerAircraft
     if workspace.P1ayerAircraft:FindFirstChild(plrCopy) then
         Cancel.Visible = true
         List.Visible = false
@@ -175,9 +208,9 @@ Copy.MouseButton1Click:Connect(function()
         end
 
         -- ✅ CORRECCIÓN: P1ayerAircraft
-        local PlayerAircraft = workspace.P1ayerAircraft:FindFirstChild(plrCopy):Clone()
-        PlayerAircraft.Parent = workspace
-        PlayerAircraft.Name = "CopiedBase"
+        local P1ayerAircraft = workspace.P1ayerAircraft:FindFirstChild(plrCopy):Clone()
+        P1ayerAircraft.Parent = workspace
+        P1ayerAircraft.Name = "CopiedBase"
 
         for i,v in pairs(game.Workspace.BuildingZones:GetChildren()) do
             if v.SurfaceGui.NameFrame.PlayerName.Text == plrCopy then
@@ -185,7 +218,7 @@ Copy.MouseButton1Click:Connect(function()
             end
         end
 
-        for i,v in pairs(PlayerAircraft:GetChildren()) do
+        for i,v in pairs(P1ayerAircraft:GetChildren()) do
             if canceled == false then
 
                 -- ✅ CORRECCIÓN: P1ayerAircraft
@@ -2063,7 +2096,7 @@ Copy.MouseButton1Click:Connect(function()
                 end
             end
             
-            local children3 = PlayerAircraft:GetChildren()
+            local children3 = P1ayerAircraft:GetChildren()
             children4 = i
             for mmm = 1, #children3 do
                 children3 = mmm
@@ -2139,3 +2172,4 @@ while true do
     end
     wait()
 end
+ 
