@@ -1,5 +1,5 @@
 -- RyzeUI.lua
--- Librería de UI + Lógica (Fly, Noclip, Build Scan/Paste)
+-- Librería de UI + Lógica (Fly, Noclip, Build Scan/Paste/AutoBuild)
 -- Autor: Ryze
 
 local RyzeUI = {}
@@ -752,7 +752,7 @@ local BuildTab = Window:CreateTab("BUILD")
 local MiscTab = Window:CreateTab("MISC")
 
 -- ============================
--- BUILD: SCAN y PASTE
+-- BUILD: SCAN, PASTE, AUTO BUILD, CLEAR
 -- ============================
 local scannedBuild = nil
 local ghostFolder = nil
@@ -791,23 +791,20 @@ BuildTab:CreateButton({
 
         local aircraft = nil
 
-        -- 1. Buscar dentro de PlayerAircraft
+        -- Buscar en varios sitios posibles
         local playerAircraft = workspace:FindFirstChild("PlayerAircraft")
         if playerAircraft then
             aircraft = playerAircraft:FindFirstChild(target.Name)
         end
 
-        -- 2. Buscar en workspace con sufijo " Aircraft"
         if not aircraft then
             aircraft = workspace:FindFirstChild(target.Name .. " Aircraft")
         end
 
-        -- 3. Buscar en workspace por nombre exacto
         if not aircraft then
             aircraft = workspace:FindFirstChild(target.Name)
         end
 
-        -- 4. Buscar dentro de la Build Zone
         if not aircraft then
             local buildZones = workspace:FindFirstChild("BuildingZones")
             if buildZones then
@@ -886,8 +883,77 @@ BuildTab:CreateButton({
 })
 
 BuildTab:CreateButton({
-    Name = "CLEAR PASTE",
+    Name = "AUTO BUILD",
     Order = 4,
+    Callback = function()
+        if not scannedBuild or not selectedTarget then
+            return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
+        end
+
+        local target = Players:FindFirstChild(selectedTarget)
+        if not target then return print("[RyzeUI] Jugador no encontrado") end
+
+        local RS = game:GetService("ReplicatedStorage")
+        local BuildFunctions
+        local ok, err = pcall(function()
+            BuildFunctions = require(RS.Modules.BuildFunctions)
+        end)
+
+        if not ok or not BuildFunctions then
+            return print("[RyzeUI] No se pudo acceder a BuildFunctions. Usa el PASTE manual.")
+        end
+
+        -- Buscar la Build Zone del jugador
+        local BuildZones = workspace:FindFirstChild("BuildingZones")
+        local buildZone = nil
+        if BuildZones then
+            for _, zone in ipairs(BuildZones:GetChildren()) do
+                if zone:FindFirstChild("Owner") and tostring(zone.Owner.Value) == target.Name then
+                    buildZone = zone
+                    break
+                end
+            end
+        end
+
+        if not buildZone then
+            return print("[RyzeUI] No se encontró la Build Zone de " .. target.Name)
+        end
+
+        print("[RyzeUI] Iniciando AUTO BUILD de " .. target.Name .. "...")
+
+        -- Recorrer los bloques y colocarlos
+        for index, partData in ipairs(scannedBuild.Parts) do
+            local relativePos = partData.Position - scannedBuild.Origin
+
+            local success = pcall(function()
+                if BuildFunctions.PlaceBlock then
+                    BuildFunctions.PlaceBlock(
+                        relativePos,
+                        partData.Size,
+                        partData.CFrame,
+                        partData.Color,
+                        partData.Material,
+                        buildZone
+                    )
+                end
+            end)
+
+            if success then
+                print("[RyzeUI] Bloque " .. index .. "/" .. #scannedBuild.Parts .. " colocado")
+            else
+                warn("[RyzeUI] Error al colocar bloque " .. index)
+            end
+
+            task.wait(0.05)
+        end
+
+        print("[RyzeUI] AUTO BUILD completado ✅")
+    end
+})
+
+BuildTab:CreateButton({
+    Name = "CLEAR PASTE",
+    Order = 5,
     Callback = function()
         if ghostFolder then
             ghostFolder:Destroy()
