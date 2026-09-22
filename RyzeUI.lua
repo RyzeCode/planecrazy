@@ -1,8 +1,9 @@
--- ============================================
--- RyzeUI (librería completa integrada)
--- ============================================
+-- RyzeUI.lua
+-- Librería de UI + Lógica (Fly, Noclip)
+-- Autor: Ryze
 
 local RyzeUI = {}
+
 RyzeUI.Version = "1.0.0"
 RyzeUI.Name = "RyzeUI"
 
@@ -38,6 +39,9 @@ local Colors = {
     DropdownHover= Color3.fromRGB(70, 70, 85),
 }
 
+-- ============================
+-- UTILIDAD
+-- ============================
 local function keyName(userInputType)
     if userInputType == Enum.UserInputType.MouseButton1 then return "Clic Izquierdo" end
     if userInputType == Enum.UserInputType.MouseButton2 then return "Clic Derecho" end
@@ -309,7 +313,6 @@ function RyzeUI:CreateWindow(config)
 
         local Tab = {}
 
-        -- BOTÓN
         function Tab:CreateButton(buttonConfig)
             buttonConfig = buttonConfig or {}
             local buttonName = buttonConfig.Name or "Button"
@@ -346,7 +349,6 @@ function RyzeUI:CreateWindow(config)
             return button
         end
 
-        -- TOGGLE
         function Tab:CreateToggle(toggleConfig)
             toggleConfig = toggleConfig or {}
             local toggleName = toggleConfig.Name or "Toggle"
@@ -410,7 +412,6 @@ function RyzeUI:CreateWindow(config)
             return toggle
         end
 
-        -- SLIDER
         function Tab:CreateSlider(sliderConfig)
             sliderConfig = sliderConfig or {}
             local sliderName = sliderConfig.Name or "Slider"
@@ -540,7 +541,6 @@ function RyzeUI:CreateWindow(config)
             return container
         end
 
-        -- DROPDOWN
         function Tab:CreateDropdown(dropdownConfig)
             dropdownConfig = dropdownConfig or {}
             local dropdownName = dropdownConfig.Name or "Dropdown"
@@ -653,7 +653,6 @@ function RyzeUI:CreateWindow(config)
             return container
         end
 
-        -- KEYBIND
         function Tab:CreateKeybind(keybindConfig)
             keybindConfig = keybindConfig or {}
             local keybindName = keybindConfig.Name or "Keybind"
@@ -743,9 +742,9 @@ function RyzeUI:CreateWindow(config)
     return Window
 end
 
--- ============================================
--- LÓGICA DEL MENÚ: MISC con Fly y Noclip
--- ============================================
+-- ============================
+-- LÓGICA: MISC con Fly y Noclip
+-- ============================
 
 local Window = RyzeUI:CreateWindow({ Name = "RyzeUI" })
 local MiscTab = Window:CreateTab("MISC")
@@ -760,9 +759,7 @@ local noclipEnabled = false
 local noclipActive = false
 local noclipKey = "V"
 
--- ============================
 -- FLY: CONTROLES
--- ============================
 MiscTab:CreateToggle({
     Name = "Fly",
     CurrentValue = false,
@@ -799,9 +796,7 @@ MiscTab:CreateSlider({
     end
 })
 
--- ============================
 -- NOCLIP: CONTROLES
--- ============================
 MiscTab:CreateToggle({
     Name = "Noclip",
     CurrentValue = false,
@@ -830,9 +825,7 @@ MiscTab:CreateKeybind({
     end
 })
 
--- ============================
 -- FLY: LÓGICA
--- ============================
 RunService.RenderStepped:Connect(function()
     if not flyEnabled then return end
 
@@ -897,9 +890,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- ============================
 -- NOCLIP: LÓGICA
--- ============================
 local function aplicarNoclip()
     local personaje = LocalPlayer.Character
     if not personaje then return end
