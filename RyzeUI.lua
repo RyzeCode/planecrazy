@@ -1,5 +1,5 @@
 -- RyzeUI.lua
--- Librería de UI + Lógica (Fly, Noclip, Build Copy)
+-- Librería de UI + Lógica (Fly, Noclip, Build Scan/Paste)
 -- Autor: Ryze
 
 local RyzeUI = {}
@@ -37,6 +37,7 @@ local Colors = {
     SliderKnob   = Color3.fromRGB(255, 255, 255),
     DropdownBg   = Color3.fromRGB(45, 45, 55),
     DropdownHover= Color3.fromRGB(70, 70, 85),
+    Ghost        = Color3.fromRGB(100, 255, 100),
 }
 
 -- ============================
@@ -751,9 +752,11 @@ local BuildTab = Window:CreateTab("BUILD")
 local MiscTab = Window:CreateTab("MISC")
 
 -- ============================
--- BUILD: COPY
+-- BUILD: SCAN y PASTE
 -- ============================
-local PlayerList = {}
+local RS = game:GetService("ReplicatedStorage")
+local scannedBuild = nil -- Aquí guardamos el escaneo
+local ghostFolder = nil
 
 BuildTab:CreateDropdown({
     Name = "Target Player",
@@ -764,30 +767,27 @@ BuildTab:CreateDropdown({
                 table.insert(list, p.Name)
             end
         end
+        if #list == 0 then list = {"None"} end
         return list
     end)(),
     CurrentOption = "None",
     Order = 1,
     Callback = function(opt)
-        PlayerList.Target = opt
+        BuildTab.Target = opt
     end
 })
 
 BuildTab:CreateButton({
-    Name = "COPY BUILD",
+    Name = "SCAN BUILD",
     Order = 2,
     Callback = function()
-        if not PlayerList.Target then
+        if not BuildTab.Target or BuildTab.Target == "None" then
             return print("[RyzeUI] Selecciona un jugador primero")
         end
 
-        local target = Players:FindFirstChild(PlayerList.Target)
-        if not target then
-            return print("[RyzeUI] Jugador no encontrado")
-        end
+        local target = Players:FindFirstChild(BuildTab.Target)
+        if not target then return print("[RyzeUI] Jugador no encontrado") end
 
-        -- Lógica simplificada de copia (basada en scripts de la comunidad) [citation:3]
-        local RS = game:GetService("ReplicatedStorage")
         local AirCrafts = workspace:FindFirstChild("PlayerAircraft")
         local BuildZones = workspace:FindFirstChild("BuildingZones")
         
@@ -796,32 +796,71 @@ BuildTab:CreateButton({
         end
 
         local aircraft = AirCrafts:FindFirstChild(target.Name)
-        local buildZone = nil
-        
-        for _, zone in ipairs(BuildZones:GetChildren()) do
-            if zone:FindFirstChild("Owner") and tostring(zone.Owner.Value) == target.Name then
-                buildZone = zone
-                break
+        if not aircraft then return print("[RyzeUI] No se encontró la nave de " .. target.Name) end
+
+        -- Guardar información de la estructura
+        scannedBuild = {}
+        scannedBuild.Origin = aircraft:GetPivot().Position
+        scannedBuild.Parts = {}
+
+        for _, part in ipairs(aircraft:GetDescendants()) do
+            if part:IsA("BasePart") then
+                table.insert(scannedBuild.Parts, {
+                    Position = part.Position,
+                    Size = part.Size,
+                    Color = part.Color,
+                    Material = part.Material,
+                    CFrame = part.CFrame
+                })
             end
         end
 
-        if not aircraft or not buildZone then
-            return print("[RyzeUI] No se encontró la nave de " .. target.Name)
+        print("[RyzeUI] Build escaneada: " .. #scannedBuild.Parts .. " bloques")
+    end
+})
+
+BuildTab:CreateButton({
+    Name = "PASTE (Mostrar Plano)",
+    Order = 3,
+    Callback = function()
+        if not scannedBuild then
+            return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
         end
 
-        print("[RyzeUI] Copiando build de " .. target.Name .. "...")
-        
-        -- Intentar usar las funciones internas del juego para copiar
-        local success, BuildFunctions = pcall(function()
-            return require(RS.Modules.BuildFunctions)
-        end)
+        -- Borrar ghost anterior si existe
+        if ghostFolder then ghostFolder:Destroy() end
 
-        if not success then
-            return print("[RyzeUI] BuildFunctions no accesible. Usa un script específico de Plane Crazy.")
+        ghostFolder = Instance.new("Folder")
+        ghostFolder.Name = "RyzeUI_Ghost"
+        ghostFolder.Parent = workspace
+
+        local basePos = LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position or Vector3.new(0,0,0)
+
+        for _, partData in ipairs(scannedBuild.Parts) do
+            local ghostPart = Instance.new("Part")
+            ghostPart.Size = partData.Size
+            ghostPart.Color = Colors.Ghost
+            ghostPart.Material = Enum.Material.ForceField
+            ghostPart.Transparency = 0.7
+            ghostPart.CanCollide = false
+            ghostPart.Anchored = true
+            ghostPart.Position = partData.Position - scannedBuild.Origin + basePos + Vector3.new(0, 5, 0)
+            ghostPart.Parent = ghostFolder
         end
 
-        -- Aquí iría la lógica de copia real, que es compleja y depende de la versión del juego
-        print("[RyzeUI] Función de copia iniciada (requiere script específico para funcionar al 100%)")
+        print("[RyzeUI] Plano mostrado. " .. #scannedBuild.Parts .. " bloques fantasma")
+    end
+})
+
+BuildTab:CreateButton({
+    Name = "CLEAR PASTE",
+    Order = 4,
+    Callback = function()
+        if ghostFolder then
+            ghostFolder:Destroy()
+            ghostFolder = nil
+            print("[RyzeUI] Plano eliminado")
+        end
     end
 })
 
