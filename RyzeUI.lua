@@ -1,5 +1,5 @@
 -- RyzeUI.lua
--- Librería de UI + Lógica (Fly, Noclip, Build Scan/Paste/AutoBuild)
+-- Librería de UI + Lógica (Fly, Noclip, Build Scan/Paste)
 -- Autor: Ryze
 
 local RyzeUI = {}
@@ -21,12 +21,10 @@ local EstadoGlobal = {
     noclipEnabled = false,
     noclipActive = false,
     ghostFolder = nil,
-    escalaPlano = 1.0,     -- Factor de escala del plano (1 = normal)
-    distanciaPlano = 50,   -- Distancia del plano respecto a ti
 }
 
 -- ============================
--- FUNCIÓN DE LIMPIEZA GLOBAL
+-- FUNCIÓN DE LIMPIEZA
 -- ============================
 local function limpiarTodo()
     if EstadoGlobal.ghostFolder then
@@ -805,10 +803,12 @@ local BuildTab = Window:CreateTab("BUILD")
 local MiscTab = Window:CreateTab("MISC")
 
 -- ============================
--- BUILD: SCAN, PASTE, AUTO BUILD, CLEAR
+-- BUILD
 -- ============================
 local scannedBuild = nil
-local selectedTarget = nilBuildTab:CreateDropdown({
+local selectedTarget = nil
+
+BuildTab:CreateDropdown({
     Name = "Target Player",
     Options = (function()
         local list = {}
@@ -825,21 +825,6 @@ local selectedTarget = nilBuildTab:CreateDropdown({
     Callback = function(opt)
         selectedTarget = opt
         print("[RyzeUI] Jugador seleccionado:", opt)
-    end
-})
-
-BuildTab:CreateSlider({
-    Name = "Escala del Plano",
-    Min = 1,
-    Max = 5,
-    CurrentValue = 1,
-    Order = 1.5,
-    Callback = function(valor)
-        -- El slider da valores enteros (1-5). Los dividimos para tener escala 0.2 a 1.0
-        -- 1 = 1x (tamaño real)
-        -- 5 = 0.2x (muy pequeño)
-        EstadoGlobal.escalaPlano = 1.0 / valor
-        print("[RyzeUI] Escala del plano:", EstadoGlobal.escalaPlano)
     end
 })
 
@@ -917,28 +902,6 @@ BuildTab:CreateButton({
             return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
         end
 
-        -- Detectar en qué base estás
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return print("[RyzeUI] No se encontró tu personaje") end
-
-        local buildZones = workspace:FindFirstChild("BuildingZones")
-        local miBase = nil
-        if buildZones then
-            for _, zona in ipairs(buildZones:GetChildren()) do
-                local owner = zona:FindFirstChild("Owner")
-                if owner and tostring(owner.Value) == LocalPlayer.Name then
-                    miBase = zona
-                    break
-                end
-            end
-        end
-
-        if miBase then
-            print("[RyzeUI] Estás en tu base: " .. miBase.Name)
-        else
-            print("[RyzeUI] ⚠️ No estás en tu base. El plano puede aparecer mal.")
-        end
-
         if EstadoGlobal.ghostFolder then
             EstadoGlobal.ghostFolder:Destroy()
         end
@@ -948,7 +911,7 @@ BuildTab:CreateButton({
         ghostFolder.Parent = workspace
         EstadoGlobal.ghostFolder = ghostFolder
 
-        -- Calcular el centro real
+        -- 1. Calcular el CENTRO REAL de la estructura escaneada
         local minX, minY, minZ = math.huge, math.huge, math.huge
         local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 
@@ -967,30 +930,41 @@ BuildTab:CreateButton({
             (minZ + maxZ) / 2
         )
 
-        -- Posición base: si estás en tu base, delante de ti. Si no, en el centro de tu base
-        local basePos
-        if miBase then
-            basePos = miBase.Position + Vector3.new(0, 10, 0)
-        elseif hrp then
-            local cam = workspace.CurrentCamera
-            local lookDir = cam.CFrame.LookVector
-            basePos = hrp.Position + Vector3.new(lookDir.X * EstadoGlobal.distanciaPlano, 0, lookDir.Z * EstadoGlobal.distanciaPlano)
-        else
-            basePos = Vector3.new(0, 10, 0)
+        -- 2. Buscar MI BASE y usar su centro
+        local basePos = nil
+        local buildZones = workspace:FindFirstChild("BuildingZones")
+        if buildZones then
+            for _, zona in ipairs(buildZones:GetChildren()) do
+                local owner = zona:FindFirstChild("Owner")
+                if owner and tostring(owner.Value) == LocalPlayer.Name then
+                    basePos = zona.Position
+                    print("[RyzeUI] Base encontrada:", zona.Name)
+                    break
+                end
+            end
+        end
+
+        -- 3. Si no encuentra mi base, usar la posición del personaje
+        if not basePos then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                basePos = hrp.Position
+                print("[RyzeUI] ⚠️ No se encontró tu base. Usando tu posición.")
+            else
+                basePos = Vector3.new(0, 10, 0)
+            end
         end
 
         print("[RyzeUI] Centro de la nave:", tostring(centroReal))
         print("[RyzeUI] Base para el plano:", tostring(basePos))
-        print("[RyzeUI] Escala aplicada:", EstadoGlobal.escalaPlano)
 
-        -- Crear los fantasmas
+        -- 4. Crear TODAS las piezas centradas en tu base
         local count = 0
         for _, partData in ipairs(scannedBuild.Parts) do
-            local relativePos = (partData.Position - centroReal) * EstadoGlobal.escalaPlano
-            local scaledSize = partData.Size * EstadoGlobal.escalaPlano
+            local relativePos = partData.Position - centroReal
 
             local ghostPart = Instance.new("Part")
-            ghostPart.Size = scaledSize
+            ghostPart.Size = partData.Size
             ghostPart.Color = Colors.Ghost
             ghostPart.Material = Enum.Material.ForceField
             ghostPart.Transparency = 0.5
@@ -1002,80 +976,13 @@ BuildTab:CreateButton({
         end
 
         print("[RyzeUI] Plano mostrado: " .. count .. " bloques fantasma")
-        print("[RyzeUI] Tamaño original: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
-    end
-})
-
-BuildTab:CreateButton({
-    Name = "AUTO BUILD",
-    Order = 4,
-    Callback = function()
-        if not scannedBuild or not selectedTarget then
-            return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
-        end
-
-        local target = Players:FindFirstChild(selectedTarget)
-        if not target then return print("[RyzeUI] Jugador no encontrado") end
-
-        local RS = game:GetService("ReplicatedStorage")
-        local BuildFunctions
-        local ok = pcall(function()
-            BuildFunctions = require(RS.Modules.BuildFunctions)
-        end)
-
-        if not ok or not BuildFunctions then
-            return print("[RyzeUI] No se pudo acceder a BuildFunctions. Usa el PASTE manual.")
-        end
-
-        local BuildZones = workspace:FindFirstChild("BuildingZones")
-        local buildZone = nil
-        if BuildZones then
-            for _, zone in ipairs(BuildZones:GetChildren()) do
-                if zone:FindFirstChild("Owner") and tostring(zone.Owner.Value) == target.Name then
-                    buildZone = zone
-                    break
-                end
-            end
-        end
-
-        if not buildZone then
-            return print("[RyzeUI] No se encontró la Build Zone de " .. target.Name)
-        end
-
-        print("[RyzeUI] Iniciando AUTO BUILD de " .. target.Name .. "...")
-
-        for index, partData in ipairs(scannedBuild.Parts) do
-            local relativePos = partData.Position - scannedBuild.Origin
-
-            local success = pcall(function()
-                if BuildFunctions.PlaceBlock then
-                    BuildFunctions.PlaceBlock(
-                        relativePos,
-                        partData.Size,
-                        partData.CFrame,
-                        partData.Color,
-                        partData.Material,
-                        buildZone
-                    )
-                end
-            end)
-
-            if success then
-                print("[RyzeUI] Bloque " .. index .. "/" .. #scannedBuild.Parts .. " colocado")
-            else
-                warn("[RyzeUI] Error al colocar bloque " .. index)
-            end
-
-            task.wait(0.05)
-        end
-
-        print("[RyzeUI] AUTO BUILD completado ✅")
+        print("[RyzeUI] Tamaño aproximado: " .. math.floor(maxX - minX) .. " x " .. math.floor(maxY - minY) .. " x " .. math.floor(maxZ - minZ) .. " studs")
     end
 })
 
 BuildTab:CreateButton({
     Name = "CLEAR PASTE",
-    Order = 5,
+    Order = 4,
     Callback = function()
         if EstadoGlobal.ghostFolder then
             EstadoGlobal.ghostFolder:Destroy()
@@ -1088,7 +995,7 @@ BuildTab:CreateButton({
 })
 
 -- ============================
--- MISC: FLY Y NOCLIP
+-- MISC
 -- ============================
 local flySpeed = 50
 local flyKey = "E"
@@ -1158,7 +1065,6 @@ MiscTab:CreateKeybind({
     end
 })
 
--- FLY: LÓGICA
 RunService.RenderStepped:Connect(function()
     if not EstadoGlobal.flyEnabled then return end
 
@@ -1207,7 +1113,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- NOCLIP: LÓGICA
 local function aplicarNoclip()
     local personaje = LocalPlayer.Character
     if not personaje then return end
@@ -1258,4 +1163,3 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 print("[RyzeUI] Cargado correctamente ✅")
-print("[RyzeUI] Para limpiar manualmente: getgenv().RyzeUI_Limpiar()")
