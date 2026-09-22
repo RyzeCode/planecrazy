@@ -922,13 +922,16 @@ BuildTab:CreateButton({
     Name = "PASTE (Mostrar Plano)",
     Order = 4,
     Callback = function()
+        print("[RyzeUI] === PASTE INICIADO ===")
+
         if not scannedBuild then
-            return print("[RyzeUI] Primero escanea una build con SCAN BUILD")
+            return print("[RyzeUI] ❌ Primero escanea una build con SCAN BUILD")
         end
 
-        if EstadoGlobal.ghostFolder then
-            EstadoGlobal.ghostFolder:Destroy()
-        end
+        print("[RyzeUI] Bloques escaneados:", #scannedBuild.Parts)
+
+        local ghostAnterior = workspace:FindFirstChild("RyzeUI_Ghost")
+        if ghostAnterior then ghostAnterior:Destroy() end
 
         local ghostFolder = Instance.new("Folder")
         ghostFolder.Name = "RyzeUI_Ghost"
@@ -945,47 +948,69 @@ BuildTab:CreateButton({
         local escala = 1 / EstadoGlobal.escalaPlano
 
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local basePos = hrp and hrp.Position or Vector3.new(0, 50, 0)
+        local cam = workspace.CurrentCamera
+        local basePos
+        if hrp and cam then
+            local lookDir = cam.CFrame.LookVector
+            basePos = hrp.Position + Vector3.new(lookDir.X * 15, 0, lookDir.Z * 15)
+        elseif hrp then
+            basePos = hrp.Position + Vector3.new(0, 0, 15)
+        else
+            basePos = Vector3.new(0, 50, 0)
+        end
 
         local offsetY = -((minY - centroY) * escala)
 
-        print("[RyzeUI] Base:", tostring(basePos))
-        print("[RyzeUI] Escala:", escala)
+        print("[RyzeUI] Base del plano:", tostring(basePos))
         print("[RyzeUI] Offset Y:", offsetY)
+        print("[RyzeUI] Escala:", escala)
 
         local count = 0
-        for _, partData in ipairs(scannedBuild.Parts) do
+        local errores = 0
+
+        for i, partData in ipairs(scannedBuild.Parts) do
             local relativePos = (partData.Position - Vector3.new(0, centroY, 0)) * escala
             local scaledSize = partData.Size * escala
+            local posFinal = basePos + relativePos + Vector3.new(0, offsetY, 0)
 
-            local ghostPart
-            if partData.ClassName == "MeshPart" then
-                ghostPart = Instance.new("MeshPart")
-                ghostPart.MeshId = partData.MeshId or ""
-                ghostPart.TextureID = partData.TextureID or ""
-                ghostPart.Size = scaledSize
-            elseif partData.ClassName == "Part" then
-                ghostPart = Instance.new("Part")
-                ghostPart.Size = scaledSize
-                if partData.Shape then
-                    ghostPart.Shape = partData.Shape
+            local ok = pcall(function()
+                local ghostPart
+                if partData.ClassName == "MeshPart" then
+                    ghostPart = Instance.new("MeshPart")
+                    if partData.MeshId and partData.MeshId ~= "" then
+                        ghostPart.MeshId = partData.MeshId
+                    end
+                    if partData.TextureID and partData.TextureID ~= "" then
+                        ghostPart.TextureID = partData.TextureID
+                    end
+                else
+                    ghostPart = Instance.new("Part")
+                    if partData.ClassName == "Part" and partData.Shape then
+                        pcall(function() ghostPart.Shape = partData.Shape end)
+                    end
                 end
-            else
-                ghostPart = Instance.new("Part")
-                ghostPart.Size = scaledSize
-            end
 
-            ghostPart.Color = Colors.Ghost
-            ghostPart.Material = Enum.Material.ForceField
-            ghostPart.Transparency = 0.5
-            ghostPart.CanCollide = false
-            ghostPart.Anchored = true
-            ghostPart.Position = basePos + relativePos + Vector3.new(0, offsetY, 0)
-            ghostPart.Parent = ghostFolder
-            count = count + 1
+                ghostPart.Name = "Ghost_" .. i
+                ghostPart.Size = scaledSize
+                ghostPart.Color = Colors.Ghost
+                ghostPart.Material = Enum.Material.ForceField
+                ghostPart.Transparency = 0.5
+                ghostPart.CanCollide = false
+                ghostPart.Anchored = true
+                ghostPart.Position = posFinal
+                ghostPart.Parent = ghostFolder
+            end)
+
+            if ok then
+                count = count + 1
+            else
+                errores = errores + 1
+            end
         end
 
-        print("[RyzeUI] Plano mostrado: " .. count .. " bloques fantasma")
+        print("[RyzeUI] ✅ Fantasmas creados: " .. count)
+        print("[RyzeUI] ❌ Errores: " .. errores)
+        print("[RyzeUI] Hijos del ghostFolder:", #ghostFolder:GetChildren())
     end
 })
 
